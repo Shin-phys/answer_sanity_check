@@ -4,7 +4,7 @@ import type { UnitGroup } from '../data/situations'
 import { formatTime } from '../core/storage'
 import { Figure } from './Figure'
 import { Rich, Tex } from './Tex'
-import { Formula, LEVEL_NAME, QuitButton, TopBar } from './common'
+import { Formula, LEVEL_NAME, QuitButton, TopBar, choiceLabels } from './common'
 
 export const GOAL = 12
 const LOCK_MS = 1500
@@ -89,9 +89,7 @@ export function TimeAttack({ level, units, card, onFinish, onQuit }: Props) {
   }, [answer])
 
   const sit = q.expr.sit
-  const check = q.checkIndex === null ? null : sit.checks[q.checkIndex]
-  const yes = level === 1 ? '単位が合う' : '合格'
-  const no = level === 1 ? '合わない' : '不合格'
+  const { yes, no } = choiceLabels(level)
   const locked = phase !== 'play'
 
   return (
@@ -120,7 +118,10 @@ export function TimeAttack({ level, units, card, onFinish, onQuit }: Props) {
               求めたい量：{sit.target.name} <Tex tex={sit.target.tex} />〔{sit.target.unit}〕
             </p>
           )}
-          <div className="w-full overflow-x-auto rounded-2xl bg-white px-3 py-5 shadow-sm border border-slate-200">
+          <div className="w-full overflow-x-auto rounded-2xl bg-white px-3 pb-5 pt-2 shadow-sm border border-slate-200">
+            <p className="mb-2 text-left text-xs font-bold text-slate-500">
+              {level === 1 ? 'ある人が出した答え（正しいとは限らない）' : '正しい式'}
+            </p>
             <Formula e={q.expr} />
           </div>
           {level === 1 && card && (
@@ -132,10 +133,12 @@ export function TimeAttack({ level, units, card, onFinish, onQuit }: Props) {
               ))}
             </div>
           )}
-          {check && (
+          {q.statement && (
             <div className="w-full rounded-xl border-2 border-pos/40 bg-pos/5 px-3 py-2.5 text-left">
-              <span className="mr-2 rounded bg-pos px-1.5 py-0.5 text-xs font-bold text-white">検算</span>
-              <span className="font-bold text-slate-800">{check.text}</span>
+              <p className="mb-1 text-xs font-bold text-pos">この式について、次の説明は正しい？</p>
+              <p className="text-lg font-bold leading-relaxed text-slate-900">
+                <Rich parts={q.statement} />
+              </p>
             </div>
           )}
         </div>
@@ -144,7 +147,7 @@ export function TimeAttack({ level, units, card, onFinish, onQuit }: Props) {
       <div className="relative bg-white border-t border-slate-200 px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         {phase === 'ng' && (
           <div className="pop absolute inset-x-3 bottom-full mb-2 rounded-xl bg-vel px-3 py-2.5 text-white shadow-lg" role="alert">
-            <p className="font-bold">✕ 正しくは「{q.answer ? yes : no}」</p>
+            <p className="font-bold">正しくは「{q.answer ? `○ ${yes}` : `✕ ${no}`}」</p>
             <p className="text-sm leading-relaxed">
               <Rich parts={questionReason(q)} />
             </p>

@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { checkTable, firstFailure, level4Situations, nextQuestion4, type Question4 } from '../core/bank'
+import { checkTable, checkText, firstFailure, level4Situations, nextQuestion4, type Question4 } from '../core/bank'
 import type { UnitGroup } from '../data/situations'
 import { symDef } from '../data/symbols'
 import { Figure } from './Figure'
@@ -115,7 +115,7 @@ export function Slow4({ units, onFinish, onQuit }: Props) {
             <p className="mt-2 text-sm leading-relaxed text-slate-700">
               {which === 'unit'
                 ? `求めたい量は ${sit.target.name}〔${sit.target.unit}〕。それぞれの式の単位を、式の右に表示しています。`
-                : `${sit.checks[which].text}。それぞれの式がどうなるかを、式の右に表示しています。`}
+                : `${checkText(sit.checks[which])}。それぞれの式がどうなるかを、式の右に表示しています。`}
             </p>
           )}
         </section>

@@ -2,6 +2,11 @@ import type { ReactNode } from 'react'
 import type { ExprInfo } from '../core/bank'
 import { Tex } from './Tex'
 
+/** 2択ボタンの文言。レベル1は単位、レベル2・3は説明の正誤 */
+export function choiceLabels(level: number): { yes: string; no: string } {
+  return level === 1 ? { yes: '単位が合う', no: '合わない' } : { yes: 'その通り', no: '誤っている' }
+}
+
 export const LEVEL_NAME: Record<number, string> = {
   1: '単位チェック',
   2: '極限チェック',

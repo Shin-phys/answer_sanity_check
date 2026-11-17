@@ -2,7 +2,7 @@ import { questionExplain, type Question } from '../core/bank'
 import { bestTime, formatTime, type Attempt } from '../core/storage'
 import { Rich } from './Tex'
 import { HistoryChart } from './HistoryChart'
-import { Formula, GhostButton, LEVEL_NAME, PrimaryButton } from './common'
+import { Formula, GhostButton, LEVEL_NAME, PrimaryButton, choiceLabels } from './common'
 import { GOAL } from './TimeAttack'
 
 type Props = {
@@ -21,8 +21,7 @@ export function Result({ attempt, before, all, wrongs, onRetry, onHome }: Props)
   const isBest = prevBest === null || attempt.timeMs < prevBest
   const diff = prevBest === null ? null : (attempt.timeMs - prevBest) / 1000
   const rate = Math.round((GOAL / (GOAL + attempt.wrong)) * 100)
-  const yes = attempt.level === 1 ? '単位が合う' : '合格'
-  const no = attempt.level === 1 ? '合わない' : '不合格'
+  const { yes, no } = choiceLabels(attempt.level)
 
   return (
     <div className="mx-auto max-w-xl px-4 py-6 flex flex-col gap-5">
@@ -70,7 +69,13 @@ export function Result({ attempt, before, all, wrongs, onRetry, onHome }: Props)
                 <div className="my-2 overflow-x-auto">
                   <Formula e={q.expr} small />
                 </div>
-                <p className="text-sm font-bold text-vel">正しい判定：{q.answer ? yes : no}</p>
+                {q.statement && (
+                  <p className="mb-1 text-sm leading-relaxed text-slate-800">
+                    <span className="mr-1 text-xs font-bold text-slate-500">説明</span>
+                    <Rich parts={q.statement} />
+                  </p>
+                )}
+                <p className="text-sm font-bold text-vel">正しい判定：{q.answer ? `○ ${yes}` : `✕ ${no}`}</p>
                 <p className="mt-1 text-sm leading-relaxed text-slate-700">
                   <Rich parts={questionExplain(q)} />
                 </p>

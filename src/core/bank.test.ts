@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import katex from 'katex'
-import { BANK, failsSomething, level4Situations, nextQuestion, nextQuestion4, poolFor, type Level } from './bank'
+import { BANK, failsSomething, level4Situations, nextQuestion, nextQuestion4, poolFor, statementsOf, type Level } from './bank'
 import { limitVerdict, makeRng } from './checks'
 import { parse } from './expr'
+import { dimEq, dimOf } from './dim'
+import { symDim } from '../data/symbols'
 import type { UnitGroup } from '../data/situations'
 
 const ALL: UnitGroup[] = ['basic', 'mech', 'other']
@@ -42,11 +44,11 @@ const LIMIT_FAILS: Record<string, number[][]> = {
   S08: [[0], [0, 1, 2]],
   S09: [[0], [0, 2]],
   S12: [[0, 2], [0, 1]],
-  S13: [[0, 1], [0, 2]],
+  S13: [[0, 1], [0, 2], [1, 2]],
   S14: [[0], [1, 2], [1, 2]],
-  S15: [[0, 1, 2], [2]],
+  S15: [[0, 1, 2], [2], [2]],
   S16: [[0, 1, 2], [0, 2], [0, 1, 2]],
-  S18: [[2]],
+  S18: [[2], [0, 1]],
 }
 // 増減の検算で不合格になる誤答候補：[状況, 動かす文字, 誤答番号]
 const TREND_FAILS: [string, string, number][] = [
@@ -165,8 +167,62 @@ describe('収録問題の自動検証', () => {
   })
 })
 
+describe('レベル2・3の説明（正しい式を前提に、説明の正誤を判定する）', () => {
+  it('極限：期待値の説明は正しく、それ以外の候補はすべて誤り', () => {
+    let n = 0
+    for (const s of BANK) {
+      s.sit.checks.forEach((c, i) => {
+        if (c.type !== 'limit') return
+        const st = statementsOf(s, i)
+        expect(st.length, `${s.sit.id} ${c.cond}`).toBe(1 + c.alts.length)
+        expect(st[0].key).toBe(c.expect)
+        expect(st[0].truth, `${s.sit.id} ${c.cond} の正しい説明`).toBe(true)
+        for (const x of st.slice(1)) expect(x.truth, `${s.sit.id} ${c.cond} の誤った説明 ${x.key}`).toBe(false)
+        n++
+      })
+    }
+    expect(n).toBe(29)
+  })
+
+  it('極限：誤った説明に使う値も、求めたい量と同じ単位をもつ', () => {
+    for (const s of BANK) for (const c of s.sit.checks) {
+      if (c.type !== 'limit') continue
+      for (const a of c.alts) {
+        if (a === '0' || a === 'inf') continue
+        const d = dimOf(parse(a), symDim)
+        expect(d.ok && dimEq(d.dim, s.sit.target.dim), `${s.sit.id} ${c.cond} ${a}`).toBe(true)
+      }
+    }
+  })
+
+  it('増減：3つの説明のうち、正しいのはちょうど1つ', () => {
+    let n = 0
+    for (const s of BANK) {
+      s.sit.checks.forEach((c, i) => {
+        if (c.type !== 'trend') return
+        const st = statementsOf(s, i)
+        expect(st.length, `${s.sit.id} ${c.v}`).toBe(3)
+        expect(st.filter((x) => x.truth).map((x) => x.key), `${s.sit.id} ${c.v}`).toEqual([c.expect])
+        n++
+      })
+    }
+    expect(n).toBe(35)
+  })
+
+  it('レベル2・3で表示する式は、必ず正しい式', () => {
+    for (const level of [2, 3] as Level[]) {
+      const pool = poolFor(level, ALL)
+      expect(pool.length).toBeGreaterThan(50)
+      for (const p of pool) {
+        expect(p.expr.isCorrect, p.id).toBe(true)
+        expect(p.statement, p.id).not.toBeNull()
+      }
+    }
+  })
+})
+
 describe('出題', () => {
-  it('レベル1〜3：合格と不合格がおよそ半々、同じ状況が続かない', () => {
+  it('レベル1〜3：○と×がおよそ半々、同じ状況が続かない', () => {
     for (const level of [1, 2, 3] as Level[]) {
       const rng = makeRng(100 + level)
       let pass = 0
@@ -182,12 +238,12 @@ describe('出題', () => {
     }
   })
 
-  it('どの単元の選び方でも、レベル1〜3に合格・不合格の両方の問題がある', () => {
+  it('どの単元の選び方でも、レベル1〜3に○と×の両方の問題がある', () => {
     const groups: UnitGroup[][] = [['basic'], ['mech'], ['other'], ALL]
     for (const g of groups) for (const level of [1, 2, 3] as Level[]) {
       const pool = poolFor(level, g)
-      expect(pool.some((p) => p.answer), `${g} L${level} 合格`).toBe(true)
-      expect(pool.some((p) => !p.answer), `${g} L${level} 不合格`).toBe(true)
+      expect(pool.some((p) => p.answer), `${g} L${level} ○`).toBe(true)
+      expect(pool.some((p) => !p.answer), `${g} L${level} ×`).toBe(true)
     }
   })
 

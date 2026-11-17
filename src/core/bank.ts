@@ -44,16 +44,14 @@ function analyzeCheck(sit: Situation, src: string, node: Node, c: Check, idx: nu
   const seed = seedOf(`${sit.id}|${src}|${idx}`)
   if (c.type === 'trend') {
     const trend = trendOf(node, c.v, sit.vars, sit.sampling, seed)
-    return { type: 'trend', trend, usable: trend === 'up' || trend === 'down', pass: trend === c.expect }
+    return { type: 'trend', trend, usable: trend !== 'mixed', pass: trend === c.expect }
   }
   const side = c.side ?? 'above'
   const v = limitVerdict(node, c.v, c.to, side, c.expect, sit.vars, sit.sampling, seed)
   if (v.kind === 'unstable') return { type: 'limit', pass: false, usable: false, becomes: 'unknown' }
-  if (v.kind === 'finite' && v.matches) {
-    return { type: 'limit', pass: true, usable: true, becomes: 'value', becomesTex: tex(c.expect) }
-  }
+  if (v.kind === 'inf') return { type: 'limit', pass: c.expect === 'inf', usable: true, becomes: 'inf' }
+  if (v.matches) return { type: 'limit', pass: true, usable: true, becomes: 'value', becomesTex: tex(c.expect) }
   const g = c.gives?.[src]
-  if (v.kind === 'inf') return { type: 'limit', pass: false, usable: true, becomes: 'inf' }
   if (g && g !== 'inf') return { type: 'limit', pass: false, usable: true, becomes: 'value', becomesTex: tex(g) }
   return { type: 'limit', pass: false, usable: true, becomes: 'unknown' }
 }
@@ -92,6 +90,11 @@ export function failsSomething(e: ExprInfo): boolean {
 
 const targetLabel = (sit: Situation) => `${sit.target.name}〔${sit.target.unit}〕`
 
+/** 検算の文（物理的に期待されること） */
+export function checkText(c: Check): string {
+  return c.type === 'limit' ? c.text : `${c.lead}、${c.words[c.expect]}はず`
+}
+
 /** 単位の検算の、短い理由（誤答時の1行） */
 export function unitReason(e: ExprInfo): Part[] {
   if (e.unitError === 'add') return ['単位のちがうものは足せない（引けない）']
@@ -108,7 +111,12 @@ export function unitExplain(e: ExprInfo): Part[] {
 
 const TREND_WORD: Record<Trend, string> = { up: '大きくなる', down: '小さくなる', flat: '変わらない', mixed: '場合による' }
 
-/** 極限・増減の検算の理由 */
+/** 「〜になる」「〜に近づく」「いくらでも大きくなる」 */
+function valueParts(value: string, verb: string): Part[] {
+  return value === 'inf' ? ['いくらでも大きくなる'] : [{ tex: tex(value) }, ` ${verb}`]
+}
+
+/** ある式が、極限・増減の検算でどうなるか */
 export function checkReason(e: ExprInfo, idx: number): Part[] {
   const c = e.sit.checks[idx]
   const r = e.checks[idx]
@@ -117,9 +125,9 @@ export function checkReason(e: ExprInfo, idx: number): Part[] {
     return [`${name} を大きくすると、この式の値は${TREND_WORD[r.trend]}`]
   }
   if (c.type === 'limit' && r.type === 'limit') {
-    const head = `${c.cond} のとき、この式は `
-    if (r.becomes === 'inf') return [head, '無限大になる']
-    if (r.becomes === 'value' && r.becomesTex) return [head, { tex: r.becomesTex }, ' になる']
+    const head = `${c.when}、この式は `
+    if (r.becomes === 'inf') return [head, 'いくらでも大きくなる']
+    if (r.becomes === 'value' && r.becomesTex) return [head, { tex: r.becomesTex }, ` ${c.verb}`]
     return [head, '期待される値にならない']
   }
   return []
@@ -134,7 +142,7 @@ export function firstFailure(e: ExprInfo): { label: string; reason: Part[] } | n
   for (const { c, i } of order) {
     const r = e.checks[i]
     if (r.usable && !r.pass) {
-      return { label: c.type === 'limit' ? '極限' : '増減', reason: [...checkReason(e, i), `（${c.text}）`] }
+      return { label: c.type === 'limit' ? '極限' : '増減', reason: [...checkReason(e, i), `（${checkText(c)}）`] }
     }
   }
   return null
@@ -146,40 +154,77 @@ export function unitCard(e: ExprInfo): { tex: string; unit: string }[] {
 }
 
 // ---------- 出題 ----------
+// レベル1：式（誤った式も含む）の単位が、求めたい量と合うかを判定する。
+// レベル2・3：正しい式だけを見せ、その極限・増減についての「説明」が正しいかを判定する。
+//   説明の正誤は、正しい式の数値計算から決める（データには正誤を書かない）。
 
 export type Level = 1 | 2 | 3
 
 export type Question = {
-  /** 記録用のID（状況|式|検算番号） */
+  /** 記録用のID */
   id: string
   level: Level
+  /** 表示する式（レベル2・3では必ず正しい式） */
   expr: ExprInfo
   /** レベル2・3で使う検算の番号 */
   checkIndex: number | null
-  /** true = 合う／合格 */
+  /** レベル2・3で判定させる説明 */
+  statement: Part[] | null
+  /** レベル1：単位が合う／レベル2・3：説明はその通り */
   answer: boolean
 }
 
-type PoolItem = { expr: ExprInfo; checkIndex: number | null; answer: boolean }
+type PoolItem = Omit<Question, 'level'>
+
+/** 説明に使う値が、正しい式の極限と一致するか */
+function limitIs(s: SituationInfo, idx: number, value: string): boolean | null {
+  const c = s.sit.checks[idx]
+  if (c.type !== 'limit') return null
+  const v = limitVerdict(s.correct.node, c.v, c.to, c.side ?? 'above', value, s.sit.vars, s.sit.sampling, seedOf(`${s.sit.id}|stmt|${idx}|${value}`))
+  if (v.kind === 'unstable') return null
+  if (value === 'inf') return v.kind === 'inf'
+  return v.kind === 'finite' && v.matches
+}
+
+/** レベル2・3の説明の候補（状況ごと・検算ごと） */
+export function statementsOf(s: SituationInfo, idx: number): { key: string; parts: Part[]; truth: boolean }[] {
+  const c = s.sit.checks[idx]
+  const r = s.correct.checks[idx]
+  // 正しい式が期待どおりにふるまう検算だけを使う
+  if (!r.usable || !r.pass) return []
+  const name = s.sit.target.name
+  if (c.type === 'limit') {
+    const out: { key: string; parts: Part[]; truth: boolean }[] = []
+    for (const value of [c.expect, ...c.alts]) {
+      const truth = limitIs(s, idx, value)
+      if (truth === null) continue
+      out.push({ key: value, truth, parts: [`${c.when}、${name}は `, ...valueParts(value, c.verb)] })
+    }
+    return out
+  }
+  if (r.type !== 'trend') return []
+  return (['up', 'down', 'flat'] as const).map((k) => ({
+    key: k,
+    truth: k === r.trend,
+    parts: [`${c.lead}、${c.words[k]}`],
+  }))
+}
 
 function buildPool(level: Level): PoolItem[] {
   const items: PoolItem[] = []
   for (const s of BANK) {
-    for (const e of s.all) {
-      if (level === 1) {
-        items.push({ expr: e, checkIndex: null, answer: e.unitOk })
-        continue
+    if (level === 1) {
+      for (const e of s.all) {
+        items.push({ id: `${s.sit.id}|${e.src}|u`, expr: e, checkIndex: null, statement: null, answer: e.unitOk })
       }
-      // レベル2・3は、単位の合う式だけを使う（1問で見る観点を1つにするため）
-      if (!e.unitOk) continue
-      s.sit.checks.forEach((c, i) => {
-        const r = e.checks[i]
-        if (!r.usable) return
-        if ((level === 2 && c.type === 'limit') || (level === 3 && c.type === 'trend')) {
-          items.push({ expr: e, checkIndex: i, answer: r.pass })
-        }
-      })
+      continue
     }
+    s.sit.checks.forEach((c, i) => {
+      if ((level === 2 && c.type !== 'limit') || (level === 3 && c.type !== 'trend')) return
+      for (const st of statementsOf(s, i)) {
+        items.push({ id: `${s.sit.id}|${i}|${st.key}`, expr: s.correct, checkIndex: i, statement: st.parts, answer: st.truth })
+      }
+    })
   }
   return items
 }
@@ -193,7 +238,7 @@ export function poolFor(level: Level, units: UnitGroup[]): PoolItem[] {
 const pick = <T,>(arr: T[], rng: () => number): T => arr[Math.floor(rng() * arr.length)]
 
 /**
- * 1問つくる。合格と不合格がおよそ半々になり、同じ状況が続かないようにする。
+ * 1問つくる。○と×がおよそ半々になり、同じ状況が続かないようにする。
  * prevSitId: 直前の問題の状況ID / recent: 最近出した問題のID（同じ問題のくり返しを避ける）
  */
 export function nextQuestion(
@@ -205,23 +250,16 @@ export function nextQuestion(
 ): Question {
   const pool = poolFor(level, units)
   if (pool.length === 0) throw new Error('出題できる問題がありません')
-  const idOf = (p: PoolItem) => `${p.expr.sit.id}|${p.expr.src}|${p.checkIndex ?? 'u'}`
   const want = rng() < 0.5
   let cand = pool.filter((p) => p.answer === want)
   if (cand.length === 0) cand = pool
   const otherSit = cand.filter((p) => p.expr.sit.id !== prevSitId)
-  const unseen = otherSit.filter((p) => !recent.includes(idOf(p)))
+  const unseen = otherSit.filter((p) => !recent.includes(p.id))
   const it = pick(unseen.length ? unseen : otherSit.length ? otherSit : cand, rng)
-  return {
-    id: idOf(it),
-    level,
-    expr: it.expr,
-    checkIndex: it.checkIndex,
-    answer: it.answer,
-  }
+  return { ...it, level }
 }
 
-/** 問題の理由（誤答時の1行） */
+/** 問題の理由（誤答時の1行）。レベル2・3では、正しい式が実際にどうなるかを示す */
 export function questionReason(q: Question): Part[] {
   return q.checkIndex === null ? unitReason(q.expr) : checkReason(q.expr, q.checkIndex)
 }
@@ -230,7 +268,8 @@ export function questionReason(q: Question): Part[] {
 export function questionExplain(q: Question): Part[] {
   if (q.checkIndex === null) return unitExplain(q.expr)
   const c = q.expr.sit.checks[q.checkIndex]
-  return [`検算：${c.text}　→　`, ...checkReason(q.expr, q.checkIndex)]
+  const why = c.type === 'limit' ? [`（${c.text}）`] : []
+  return [...checkReason(q.expr, q.checkIndex), ...why]
 }
 
 // ---------- レベル4（計算せずに選べ） ----------
@@ -271,7 +310,7 @@ export function checkTable(q: Question4, which: 'unit' | number): { ok: boolean;
     const r = e.checks[which]
     if (c.type === 'trend' && r.type === 'trend') return { ok: r.pass, parts: [TREND_WORD[r.trend]] }
     if (r.type === 'limit') {
-      if (r.becomes === 'inf') return { ok: false, parts: ['無限大'] }
+      if (r.becomes === 'inf') return { ok: r.pass, parts: ['いくらでも大きくなる'] }
       if (r.becomesTex) return { ok: r.pass, parts: [{ tex: r.becomesTex }] }
     }
     return { ok: r.pass, parts: [r.pass ? '合う' : '合わない'] }

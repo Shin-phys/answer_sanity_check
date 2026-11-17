@@ -15,9 +15,9 @@ type Props = {
 const GROUPS: UnitGroup[] = ['basic', 'mech', 'other']
 
 const ATTACK: { level: 1 | 2 | 3; desc: string }[] = [
-  { level: 1, desc: '式の単位が、求めたい量の単位と合うかを見る' },
-  { level: 2, desc: '極端な場合・特別な場合に、当然の結果になるかを見る' },
-  { level: 3, desc: '条件を変えたときの増え方・減り方が自然かを見る' },
+  { level: 1, desc: 'ある人が出した答えの単位が、求めたい量と合うかを見る' },
+  { level: 2, desc: '正しい式が、極端な場合・特別な場合にどうなるかを読みとる' },
+  { level: 3, desc: '正しい式から、条件を変えたときの増え方・減り方を読みとる' },
 ]
 const SLOW: { level: 4 | 5; desc: string }[] = [
   { level: 4, desc: '4つの式から、検算だけで正しい式を選ぶ' },
