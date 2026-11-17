@@ -1,6 +1,42 @@
-import type { ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import type { ExprInfo } from '../core/bank'
 import { Tex } from './Tex'
+
+/**
+ * キーボード操作。handler が true を返したキーは、ブラウザの既定の動作を止める。
+ * - Ctrl などとの同時押し、押しっぱなしのくり返しは無視する
+ * - ボタンなどにフォーカスがあるときの Enter・Space は、そのボタンの操作にまかせる
+ * 1文字のキーは小文字にして渡す（例: 'f'）。それ以外は 'Enter' 'Escape' 'ArrowLeft' など。
+ */
+export function useKeys(handler: (key: string) => boolean | void) {
+  const ref = useRef(handler)
+  useEffect(() => {
+    ref.current = handler
+  })
+  useEffect(() => {
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.ctrlKey || ev.metaKey || ev.altKey || ev.repeat || ev.isComposing) return
+      const t = ev.target as HTMLElement | null
+      const onControl = !!t && /^(BUTTON|A|INPUT|SELECT|TEXTAREA)$/.test(t.tagName)
+      if (onControl && (ev.key === 'Enter' || ev.key === ' ')) return
+      const key = ev.key.length === 1 ? ev.key.toLowerCase() : ev.key
+      if (ref.current(key)) ev.preventDefault()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+}
+
+/** 押したボタンにフォーカスが残って、次のキー入力を横取りしないようにする */
+export function blurActive() {
+  const el = document.activeElement
+  if (el instanceof HTMLElement) el.blur()
+}
+
+/** キーの案内。マウスのある端末（PC）でだけ表示する */
+export function Kbd({ children, light }: { children: ReactNode; light?: boolean }) {
+  return <kbd className={`kbd ${light ? 'kbd-light' : ''}`}>{children}</kbd>
+}
 
 /** 2択ボタンの文言。レベル1は単位、レベル2・3は説明の正誤 */
 export function choiceLabels(level: number): { yes: string; no: string } {
@@ -33,7 +69,7 @@ export function TopBar({ left, center, right }: { left: ReactNode; center?: Reac
 export function QuitButton({ onClick }: { onClick: () => void }) {
   return (
     <button onClick={onClick} className="min-h-11 px-3 rounded-lg text-sm text-slate-600 hover:bg-slate-100">
-      ← やめる
+      ← やめる <Kbd>Esc</Kbd>
     </button>
   )
 }

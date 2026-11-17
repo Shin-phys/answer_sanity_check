@@ -4,9 +4,11 @@ import type { UnitGroup } from '../data/situations'
 import { symDef } from '../data/symbols'
 import { Figure } from './Figure'
 import { Rich, Tex } from './Tex'
-import { PrimaryButton, QuitButton, TopBar } from './common'
+import { Kbd, PrimaryButton, QuitButton, TopBar, blurActive, useKeys } from './common'
 
 const MARK = ['①', '②', '③', '④']
+/** 検算ボタンのキー。左から順に、単位・検算1・検算2… */
+const CHECK_KEYS = ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k']
 
 export type SlowResult = { correct: number; total: number; wrongIds: string[]; checksUsed?: number }
 
@@ -29,7 +31,8 @@ export function Slow4({ units, onFinish, onQuit }: Props) {
   const answered = chosen !== null
 
   const choose = (i: number) => {
-    if (answered) return
+    if (answered || i >= q.options.length) return
+    blurActive()
     setChosen(i)
     if (i === q.correctIndex) setCorrect((c) => c + 1)
     else setWrongIds((w) => [...w, sit.id])
@@ -51,6 +54,27 @@ export function Slow4({ units, onFinish, onQuit }: Props) {
     setWhich(null)
   }
 
+  // キーボード：1〜4 で式を選ぶ、A S D… で検算、Enter か Space で次へ、Esc でやめる
+  useKeys((key) => {
+    if (key === 'Escape') {
+      onQuit()
+      return true
+    }
+    if (!answered && key.length === 1 && '1234'.includes(key)) {
+      choose(Number(key) - 1)
+      return true
+    }
+    if (answered && (key === 'Enter' || key === ' ')) {
+      next()
+      return true
+    }
+    const ci = CHECK_KEYS.indexOf(key)
+    if (ci >= 0 && ci <= sit.checks.length) {
+      openCheck(ci === 0 ? 'unit' : ci - 1)
+      return true
+    }
+  })
+
   const checkLabel = (i: number) => {
     const c = sit.checks[i]
     return c.type === 'limit' ? c.cond : `${symDef(c.v).plain} を大きく`
@@ -66,6 +90,7 @@ export function Slow4({ units, onFinish, onQuit }: Props) {
           <p className="text-sm font-bold text-slate-800">
             正しい式はどれ？（<Tex tex={sit.target.tex} /> ＝ ）
           </p>
+          <p className="kbd-note text-xs text-slate-500">キーボード：1〜4 で式を選ぶ</p>
         </div>
 
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
@@ -103,11 +128,11 @@ export function Slow4({ units, onFinish, onQuit }: Props) {
           <h2 className="mb-2 text-sm font-bold text-slate-700">検算してみる</h2>
           <div className="flex flex-wrap gap-2">
             <CheckChip active={which === 'unit'} onClick={() => openCheck('unit')}>
-              単位
+              単位 <Kbd>A</Kbd>
             </CheckChip>
             {sit.checks.map((_, i) => (
               <CheckChip key={i} active={which === i} onClick={() => openCheck(i)}>
-                {checkLabel(i)}
+                {checkLabel(i)} <Kbd>{CHECK_KEYS[i + 1].toUpperCase()}</Kbd>
               </CheckChip>
             ))}
           </div>
@@ -140,7 +165,9 @@ export function Slow4({ units, onFinish, onQuit }: Props) {
               })}
             </ul>
             <div className="mt-3 text-right">
-              <PrimaryButton onClick={next}>{n >= total ? '結果を見る' : '次の問題へ'}</PrimaryButton>
+              <PrimaryButton onClick={next}>
+                {n >= total ? '結果を見る' : '次の問題へ'} <Kbd light>Enter</Kbd>
+              </PrimaryButton>
             </div>
           </section>
         )}

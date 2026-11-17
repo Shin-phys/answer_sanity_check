@@ -2,7 +2,7 @@ import { questionExplain, type Question } from '../core/bank'
 import { bestTime, formatTime, type Attempt } from '../core/storage'
 import { Rich } from './Tex'
 import { HistoryChart } from './HistoryChart'
-import { Formula, GhostButton, LEVEL_NAME, PrimaryButton, choiceLabels } from './common'
+import { Formula, GhostButton, Kbd, LEVEL_NAME, PrimaryButton, choiceLabels, useKeys } from './common'
 import { GOAL } from './TimeAttack'
 
 type Props = {
@@ -22,6 +22,18 @@ export function Result({ attempt, before, all, wrongs, onRetry, onHome }: Props)
   const diff = prevBest === null ? null : (attempt.timeMs - prevBest) / 1000
   const rate = Math.round((GOAL / (GOAL + attempt.wrong)) * 100)
   const { yes, no } = choiceLabels(attempt.level)
+
+  // キーボード：Enter か Space でもう一度、Esc でレベル選択へ
+  useKeys((key) => {
+    if (key === 'Enter' || key === ' ') {
+      onRetry()
+      return true
+    }
+    if (key === 'Escape') {
+      onHome()
+      return true
+    }
+  })
 
   return (
     <div className="mx-auto max-w-xl px-4 py-6 flex flex-col gap-5">
@@ -48,8 +60,12 @@ export function Result({ attempt, before, all, wrongs, onRetry, onHome }: Props)
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <PrimaryButton onClick={onRetry}>もう一度</PrimaryButton>
-        <GhostButton onClick={onHome}>レベルを変える</GhostButton>
+        <PrimaryButton onClick={onRetry}>
+          もう一度 <Kbd light>Enter</Kbd>
+        </PrimaryButton>
+        <GhostButton onClick={onHome}>
+          レベルを変える <Kbd>Esc</Kbd>
+        </GhostButton>
       </div>
 
       <section className="rounded-2xl bg-white p-4 shadow-sm border border-slate-200">

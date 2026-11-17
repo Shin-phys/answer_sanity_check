@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { KIND_LABEL, KIND_ORDER, MISTAKES, type Mistake, type MistakeKind } from '../data/mistakes'
 import { Figure } from './Figure'
 import { Rich } from './Tex'
-import { PrimaryButton, QuitButton, TopBar } from './common'
+import { Kbd, PrimaryButton, QuitButton, TopBar, blurActive, useKeys } from './common'
 import type { SlowResult } from './Slow4'
 
 const NUM = ['①', '②', '③', '④', '⑤']
@@ -30,8 +30,14 @@ export function Slow5({ onFinish, onQuit }: { onFinish: (r: SlowResult) => void;
   const lineRight = line === m.wrongLine
   const kindRight = kind === m.kind
 
-  const pickKind = (k: MistakeKind) => {
-    if (kind !== null) return
+  const pickLine = (i: number) => {
+    if (line !== null || i < 0 || i >= m.lines.length) return
+    blurActive()
+    setLine(i)
+  }
+  const pickKind = (k: MistakeKind | undefined) => {
+    if (kind !== null || line === null || !k) return
+    blurActive()
     setKind(k)
     if (lineRight && k === m.kind) setCorrect((c) => c + 1)
     else setWrongIds((w) => [...w, m.id])
@@ -46,6 +52,26 @@ export function Slow5({ onFinish, onQuit }: { onFinish: (r: SlowResult) => void;
     setKind(null)
   }
 
+  // キーボード：数字で行→誤りの種類を選ぶ、Enter か Space で次へ、Esc でやめる
+  useKeys((key) => {
+    if (key === 'Escape') {
+      onQuit()
+      return true
+    }
+    if (kind !== null) {
+      if (key === 'Enter' || key === ' ') {
+        next()
+        return true
+      }
+      return
+    }
+    if (key.length !== 1 || !'12345'.includes(key)) return
+    const i = Number(key) - 1
+    if (line === null) pickLine(i)
+    else pickKind(KIND_ORDER[i])
+    return true
+  })
+
   return (
     <div className="min-h-dvh flex flex-col">
       <TopBar left={<QuitButton onClick={onQuit} />} center="レベル5 まちがい探し" right={<span className="text-sm text-slate-600">{idx + 1} / {total}</span>} />
@@ -57,7 +83,7 @@ export function Slow5({ onFinish, onQuit }: { onFinish: (r: SlowResult) => void;
 
         <section>
           <h2 className="mb-2 text-sm font-bold text-slate-800">
-            {line === null ? '① この答案には誤りが1行あります。その行をタップ' : '答案'}
+            {line === null ? '① この答案には誤りが1行あります。その行を選ぼう' : '答案'}
           </h2>
           <ol className="flex flex-col gap-2">
             {m.lines.map((parts, i) => {
@@ -71,7 +97,7 @@ export function Slow5({ onFinish, onQuit }: { onFinish: (r: SlowResult) => void;
               return (
                 <li key={i}>
                   <button
-                    onClick={() => line === null && setLine(i)}
+                    onClick={() => pickLine(i)}
                     disabled={line !== null}
                     className={`flex w-full min-h-14 items-center gap-3 rounded-xl border-2 px-3 py-2 text-left ${cls}`}
                   >
@@ -96,7 +122,7 @@ export function Slow5({ onFinish, onQuit }: { onFinish: (r: SlowResult) => void;
           <section>
             <h2 className="mb-2 text-sm font-bold text-slate-800">② どんな種類の誤り？</h2>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {KIND_ORDER.map((k) => {
+              {KIND_ORDER.map((k, ki) => {
                 const reveal = kind !== null && k === m.kind
                 const picked = kind === k
                 const cls = reveal ? 'border-acc bg-acc/10' : picked ? 'border-vel bg-vel/10' : 'border-slate-300 bg-white'
@@ -107,7 +133,7 @@ export function Slow5({ onFinish, onQuit }: { onFinish: (r: SlowResult) => void;
                     disabled={kind !== null}
                     className={`min-h-12 rounded-xl border-2 px-3 text-left font-bold text-slate-700 ${cls}`}
                   >
-                    {KIND_LABEL[k]}
+                    {KIND_LABEL[k]} <Kbd>{ki + 1}</Kbd>
                   </button>
                 )
               })}
@@ -129,7 +155,9 @@ export function Slow5({ onFinish, onQuit }: { onFinish: (r: SlowResult) => void;
               {m.hint}
             </p>
             <div className="mt-3 text-right">
-              <PrimaryButton onClick={next}>{idx + 1 >= total ? '結果を見る' : '次の問題へ'}</PrimaryButton>
+              <PrimaryButton onClick={next}>
+                {idx + 1 >= total ? '結果を見る' : '次の問題へ'} <Kbd light>Enter</Kbd>
+              </PrimaryButton>
             </div>
           </section>
         )}

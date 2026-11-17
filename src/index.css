@@ -48,3 +48,40 @@ button {
 @media (prefers-reduced-motion: reduce) {
   .pop { animation: none; }
 }
+
+/* キーの案内：タッチ端末では出さない */
+.kbd {
+  display: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .kbd {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 0.5em;
+    padding: 0.1em 0.5em;
+    border: 1px solid #94a3b8;
+    border-bottom-width: 2px;
+    border-radius: 0.4em;
+    background: #f8fafc;
+    color: #334155;
+    font-family: ui-monospace, monospace;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1.5;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  .kbd-light {
+    border-color: rgb(255 255 255 / 0.6);
+    background: rgb(255 255 255 / 0.18);
+    color: #fff;
+  }
+}
+.kbd-note {
+  display: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .kbd-note {
+    display: block;
+  }
+}

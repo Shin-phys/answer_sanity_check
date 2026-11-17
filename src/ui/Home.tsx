@@ -1,6 +1,6 @@
 import { UNIT_GROUP_LABEL, type UnitGroup } from '../data/situations'
 import { bestTime, formatTime, type Attempt } from '../core/storage'
-import { LEVEL_NAME } from './common'
+import { Kbd, LEVEL_NAME } from './common'
 
 type Props = {
   units: UnitGroup[]
@@ -82,7 +82,7 @@ export function Home({ units, setUnits, card, setCard, attempts, onStart, onClea
                     onClick={() => onStart(level)}
                     className="min-h-14 shrink-0 rounded-xl bg-pos px-5 font-bold text-white shadow-sm active:translate-y-px"
                   >
-                    スタート
+                    スタート <Kbd light>{level}</Kbd>
                   </button>
                 </div>
                 {level === 1 && (
@@ -113,7 +113,7 @@ export function Home({ units, setUnits, card, setCard, attempts, onStart, onClea
                 onClick={() => onStart(level)}
                 className="min-h-14 shrink-0 rounded-xl bg-white border-2 border-pos px-5 font-bold text-pos active:translate-y-px"
               >
-                はじめる
+                はじめる <Kbd>{level}</Kbd>
               </button>
             </div>
           ))}
@@ -123,6 +123,7 @@ export function Home({ units, setUnits, card, setCard, attempts, onStart, onClea
       <footer className="text-center text-xs leading-relaxed text-slate-500">
         <p>検算は「誤りを見つける道具」です。合格した式が必ず正しいとは限りません。</p>
         <p className="mt-1">記録はこの端末の中だけに保存されます。</p>
+        <p className="kbd-note mt-1">キーボードだけでも操作できます（数字キーでレベルを開始、Esc で戻る）。</p>
         {attempts.length > 0 && (
           <button onClick={onClear} className="mt-2 min-h-11 px-3 underline">
             記録を消す

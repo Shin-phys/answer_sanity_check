@@ -7,7 +7,7 @@ import { TimeAttack, GOAL, type AttackResult } from './TimeAttack'
 import { Result } from './Result'
 import { Slow4, type SlowResult } from './Slow4'
 import { Slow5 } from './Slow5'
-import { GhostButton, LEVEL_NAME, PrimaryButton } from './common'
+import { GhostButton, Kbd, LEVEL_NAME, PrimaryButton, useKeys } from './common'
 
 type Lv = 1 | 2 | 3 | 4 | 5
 
@@ -91,6 +91,24 @@ export default function App() {
     [units],
   )
 
+  // キーボード：トップ画面は 1〜5 でレベル開始。じっくりモードの結果は Enter でもう一度、Esc で戻る
+  useKeys((key) => {
+    if (screen.name === 'home' && key.length === 1 && '12345'.includes(key)) {
+      start(Number(key) as Lv)
+      return true
+    }
+    if (screen.name === 'slowResult') {
+      if (key === 'Enter' || key === ' ') {
+        start(screen.level)
+        return true
+      }
+      if (key === 'Escape') {
+        home()
+        return true
+      }
+    }
+  })
+
   if (screen.name === 'play') {
     const { level, key } = screen
     if (level === 4) return <Slow4 key={key} units={units} onFinish={(r) => finishSlow(4, r)} onQuit={home} />
@@ -127,8 +145,12 @@ export default function App() {
           {r.checksUsed !== undefined && <p className="mt-3 text-sm text-slate-600">検算ボタンを使った回数：{r.checksUsed} 回</p>}
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <PrimaryButton onClick={() => start(level)}>もう一度</PrimaryButton>
-          <GhostButton onClick={home}>レベルを変える</GhostButton>
+          <PrimaryButton onClick={() => start(level)}>
+            もう一度 <Kbd light>Enter</Kbd>
+          </PrimaryButton>
+          <GhostButton onClick={home}>
+            レベルを変える <Kbd>Esc</Kbd>
+          </GhostButton>
         </div>
       </div>
     )

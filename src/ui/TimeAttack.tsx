@@ -4,7 +4,7 @@ import type { UnitGroup } from '../data/situations'
 import { formatTime } from '../core/storage'
 import { Figure } from './Figure'
 import { Rich, Tex } from './Tex'
-import { Formula, LEVEL_NAME, QuitButton, TopBar, choiceLabels } from './common'
+import { Formula, Kbd, LEVEL_NAME, QuitButton, TopBar, blurActive, choiceLabels, useKeys } from './common'
 
 export const GOAL = 12
 const LOCK_MS = 1500
@@ -56,6 +56,7 @@ export function TimeAttack({ level, units, card, onFinish, onQuit }: Props) {
   const answer = useCallback(
     (choice: boolean) => {
       if (phase !== 'play' || done.current) return
+      blurActive()
       if (choice === q.answer) {
         const n = correct + 1
         setCorrect(n)
@@ -78,15 +79,21 @@ export function TimeAttack({ level, units, card, onFinish, onQuit }: Props) {
     [phase, q, correct, advance, onFinish],
   )
 
-  // PC・投影用：← → キーでも答えられる
-  useEffect(() => {
-    const onKey = (ev: KeyboardEvent) => {
-      if (ev.key === 'ArrowLeft') answer(true)
-      if (ev.key === 'ArrowRight') answer(false)
+  // キーボード：← か F で左のボタン、→ か J で右のボタン、Esc でやめる
+  useKeys((key) => {
+    if (key === 'ArrowLeft' || key === 'f') {
+      answer(true)
+      return true
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [answer])
+    if (key === 'ArrowRight' || key === 'j') {
+      answer(false)
+      return true
+    }
+    if (key === 'Escape') {
+      onQuit()
+      return true
+    }
+  })
 
   const sit = q.expr.sit
   const { yes, no } = choiceLabels(level)
@@ -165,6 +172,7 @@ export function TimeAttack({ level, units, card, onFinish, onQuit }: Props) {
             className="min-h-20 rounded-2xl bg-pos text-xl font-bold text-white shadow active:translate-y-px disabled:opacity-40"
           >
             ○ {yes}
+            <Kbd light>← / F</Kbd>
           </button>
           <button
             onClick={() => answer(false)}
@@ -172,6 +180,7 @@ export function TimeAttack({ level, units, card, onFinish, onQuit }: Props) {
             className="min-h-20 rounded-2xl bg-slate-700 text-xl font-bold text-white shadow active:translate-y-px disabled:opacity-40"
           >
             ✕ {no}
+            <Kbd light>→ / J</Kbd>
           </button>
         </div>
       </div>
