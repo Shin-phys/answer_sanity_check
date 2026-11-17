@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+@theme {
+  --color-pos: #0072b2;
+  --color-vel: #d55e00;
+  --color-acc: #009e73;
+  --font-sans: "BIZ UDPGothic", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+}
+html.big {
+  font-size: 21px;
+}
+body {
+  margin: 0;
+  background: #f4f6f8;
+  color: #1f2933;
+  font-family: var(--font-sans);
+  overscroll-behavior-y: none;
+}
+button {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.katex {
+  font-size: 1.15em;
+  /* 数式の途中で改行させない */
+  white-space: nowrap;
+  display: inline-block;
+}
+.formula .katex {
+  font-size: 1.6em;
+}
+.formula-sm .katex {
+  font-size: 1.25em;
+}
+@keyframes pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  60% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.pop {
+  animation: pop 0.25s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pop { animation: none; }
+}
