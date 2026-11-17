@@ -79,13 +79,13 @@ export function TimeAttack({ level, units, card, onFinish, onQuit }: Props) {
     [phase, q, correct, advance, onFinish],
   )
 
-  // キーボード：← か F で左のボタン、→ か J で右のボタン、Esc でやめる
+  // キーボード：← か S で左のボタン、→ か F で右のボタン、Esc でやめる（S・F は左手だけで答えられる配置）
   useKeys((key) => {
-    if (key === 'ArrowLeft' || key === 'f') {
+    if (key === 'ArrowLeft' || key === 's') {
       answer(true)
       return true
     }
-    if (key === 'ArrowRight' || key === 'j') {
+    if (key === 'ArrowRight' || key === 'f') {
       answer(false)
       return true
     }
@@ -172,7 +172,7 @@ export function TimeAttack({ level, units, card, onFinish, onQuit }: Props) {
             className="min-h-20 rounded-2xl bg-pos text-xl font-bold text-white shadow active:translate-y-px disabled:opacity-40"
           >
             ○ {yes}
-            <Kbd light>← / F</Kbd>
+            <Kbd light>S / ←</Kbd>
           </button>
           <button
             onClick={() => answer(false)}
@@ -180,7 +180,7 @@ export function TimeAttack({ level, units, card, onFinish, onQuit }: Props) {
             className="min-h-20 rounded-2xl bg-slate-700 text-xl font-bold text-white shadow active:translate-y-px disabled:opacity-40"
           >
             ✕ {no}
-            <Kbd light>→ / J</Kbd>
+            <Kbd light>F / →</Kbd>
           </button>
         </div>
       </div>
